@@ -29,6 +29,10 @@ _notes
 *.nupkg
 **/.claude/
 
+# Local blog drafts
+BLOG-release-zaplib-v2.5.0-with-ai.md
+BLOG-zaplib-docs-with-ai.md
+
 # DocFX (auto-generated)
 docs/_site/
 docs/obj/
