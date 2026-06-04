@@ -10,6 +10,7 @@ using ZapLib.Utility;
 using System.Collections.Specialized;
 using System.Text.RegularExpressions;
 using System.Data.Common;
+using System.Threading.Tasks;
 
 namespace ZapLib
 {
@@ -243,7 +244,7 @@ namespace ZapLib
             Cmd.CommandText = sql;
             Cmd.CommandType = CommandType.Text;
             Cmd.Parameters.Clear();
-            setParaInput(Cmd, param);
+            SetParaInput(Cmd, param);
             SqlDataReader rd = Cmd.ExecuteReader();
             lextime2.Log();
             return rd;
@@ -264,7 +265,7 @@ namespace ZapLib
             Cmd.CommandText = sql;
             Cmd.CommandType = CommandType.StoredProcedure;
             Cmd.Parameters.Clear();
-            setParaInput(Cmd, param);
+            SetParaInput(Cmd, param);
             Dictionary<string, SqlParameter> tmpOutputParams = SetParaOutput<T>(Cmd);
             //Dictionary<string, SqlParameter> tmpOutputParams = output == null ? null : setParaOutput(Cmd, output);
             Cmd.ExecuteNonQuery();
@@ -287,7 +288,7 @@ namespace ZapLib
             Cmd.CommandText = sql;
             Cmd.CommandType = CommandType.StoredProcedure;
             Cmd.Parameters.Clear();
-            setParaInput(Cmd, param);
+            SetParaInput(Cmd, param);
             Dictionary<string, SqlParameter> tmpOutputParams = SetParaOutput<T>(Cmd);
             //Dictionary<string, SqlParameter> tmpOutputParams = output == null ? null : setParaOutput(Cmd, output);
             Cmd.ExecuteNonQuery();
@@ -307,7 +308,7 @@ namespace ZapLib
             Cmd.CommandText = sql;
             Cmd.CommandType = CommandType.StoredProcedure;
             Cmd.Parameters.Clear();
-            setParaInput(Cmd, param);
+            SetParaInput(Cmd, param);
             Dictionary<string, SqlParameter> tmpOutputParams = output == null ? null : setParaOutput(Cmd, output);
             Cmd.ExecuteNonQuery();
             return getDynamicParaOutput(tmpOutputParams);
@@ -473,6 +474,127 @@ namespace ZapLib
             return obj;
         }
 
+        /// <summary>
+        /// 在背景執行一般 SQL 指令，呼叫後立即返回，不等待執行結果。
+        /// 背景任務會建立獨立的連線、命令與交易物件，不會共用目前 instance 的 Conn / Cmd / Tran。
+        /// </summary>
+        /// <param name="sql">SQL 指令</param>
+        /// <param name="param">語法中的參數化資料</param>
+        public void QuickExecuteNoWait(string sql, object param = null)
+        {
+            RunNoWait("QuickExecuteNoWait", sql, param, CommandType.Text);
+        }
+
+        /// <summary>
+        /// 在背景執行 Stored Procedure，呼叫後立即返回，不等待執行結果。
+        /// 背景任務會建立獨立的連線、命令與交易物件，不會共用目前 instance 的 Conn / Cmd / Tran。
+        /// </summary>
+        /// <param name="spName">Stored Procedure 名稱</param>
+        /// <param name="param">語法中的參數化資料</param>
+        public void QuickExecNoWait(string spName, object param = null)
+        {
+            RunNoWait("QuickExecNoWait", spName, param, CommandType.StoredProcedure);
+        }
+
+        private void RunNoWait(string methodName, string commandText, object param, CommandType commandType)
+        {
+            string traceCode = TraceCode;
+            int timeout = Timeout;
+            bool transaction = isTran;
+            List<Tuple<string, string>> sqlDBReplaceRules = SQLDBReplaceRules == null ? null : new List<Tuple<string, string>>(SQLDBReplaceRules);
+            string backgroundConnectionString = null;
+
+            try
+            {
+                backgroundConnectionString = BuildConnectionString();
+                Task.Run(() => ExecuteNoWait(methodName, commandText, param, commandType, backgroundConnectionString, timeout, transaction, traceCode, sqlDBReplaceRules));
+            }
+            catch (Exception e)
+            {
+                WriteNoWaitError(methodName, commandText, param, traceCode, e);
+            }
+        }
+
+        private static void ExecuteNoWait(string methodName, string commandText, object param, CommandType commandType,
+            string connectionString, int timeout, bool transaction, string traceCode, List<Tuple<string, string>> sqlDBReplaceRules)
+        {
+            string execText = ApplySQLDBReplace(commandText, sqlDBReplaceRules);
+            LogExecTime lextime = new LogExecTime($"Exec sql NoWait ({methodName}): {commandText}\r\nParam: {SafeSerialize(param)}\r\nTraceCode: {traceCode}");
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    SqlTransaction tran = null;
+                    conn.Open();
+                    cmd.CommandText = execText;
+                    cmd.CommandType = commandType;
+                    cmd.CommandTimeout = timeout;
+
+                    if (transaction)
+                    {
+                        tran = conn.BeginTransaction();
+                        cmd.Transaction = tran;
+                    }
+
+                    try
+                    {
+                        SetParaInput(cmd, param);
+                        cmd.ExecuteNonQuery();
+
+                        if (tran != null) tran.Commit();
+                    }
+                    catch
+                    {
+                        if (tran != null)
+                        {
+                            try
+                            {
+                                tran.Rollback();
+                            }
+                            catch (Exception rollbackException)
+                            {
+                                WriteNoWaitError(methodName + " Rollback", commandText, param, traceCode, rollbackException);
+                            }
+                        }
+
+                        throw;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                WriteNoWaitError(methodName, commandText, param, traceCode, e);
+            }
+            finally
+            {
+                lextime.Log();
+            }
+        }
+
+        private static void WriteNoWaitError(string methodName, string commandText, object param, string traceCode, Exception e)
+        {
+            MyLog noWaitLog = new MyLog();
+            noWaitLog.SilentMode = Config.Get("SilentMode");
+            noWaitLog.Write("SQL " + methodName + " Error: " + commandText +
+                " para:" + SafeSerialize(param) +
+                "\r\nTraceCode: " + traceCode +
+                "\r\n" + e.ToString());
+        }
+
+        private static string SafeSerialize(object param)
+        {
+            try
+            {
+                return JsonConvert.SerializeObject(param);
+            }
+            catch (Exception e)
+            {
+                return "[Can not serialize param: " + e.ToString() + "]";
+            }
+        }
+
         /*
         /// <summary>
         /// [有風險] 自動開啟連線並執行預存程序，執行完畢後自動關閉連線
@@ -628,7 +750,7 @@ namespace ZapLib
         /*
             bind sql params values          
         */
-        private void setParaInput(SqlCommand cmd, object param)
+        private static void SetParaInput(SqlCommand cmd, object param)
         {
             if (param != null)
                 foreach (var prop in param.GetType().GetProperties())
@@ -760,9 +882,14 @@ namespace ZapLib
         /// <returns></returns>
         public string SQLDBReplace(string sql)
         {
-            if (SQLDBReplaceRules == null) return sql;
+            return ApplySQLDBReplace(sql, SQLDBReplaceRules);
+        }
+
+        private static string ApplySQLDBReplace(string sql, List<Tuple<string, string>> rules)
+        {
+            if (rules == null) return sql;
             string tmpsql = sql;
-            foreach (Tuple<string, string> rule in SQLDBReplaceRules)
+            foreach (Tuple<string, string> rule in rules)
             {
                 (string pattern, string repto) = rule;
                 tmpsql = Regex.Replace(tmpsql, @pattern, repto, RegexOptions.IgnoreCase | RegexOptions.Multiline);

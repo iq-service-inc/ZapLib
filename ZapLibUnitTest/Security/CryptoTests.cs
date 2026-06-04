@@ -10,15 +10,42 @@ namespace ZapLib.Security.Tests
     public class CryptoTests
     {
         [TestMethod()]
-        public void DESEncryptionTest()
+        public void AESEncryptionTest()
         {
             Crypto c = new Crypto(Encoding.UTF8);
             string exp = "你好我是大衛";
-            string s = c.DESEncryption(exp);
+            string s = c.AESEncryption(exp);
             Trace.WriteLine(s);
-            string ds = c.DESDecryption(s, c.IV);
+            string ds = c.AESDecryption(s, c.IV);
             Trace.WriteLine(ds);
             Assert.AreEqual(exp, ds);
+        }
+
+        [TestMethod()]
+        public void AESEncryptionUsesRandomIVTest()
+        {
+            Crypto c1 = new Crypto(Encoding.UTF8);
+            Crypto c2 = new Crypto(Encoding.UTF8);
+
+            string s1 = c1.AESEncryption("same message");
+            string s2 = c2.AESEncryption("same message");
+
+            Assert.AreNotEqual(c1.IV, c2.IV);
+            Assert.AreNotEqual(s1, s2);
+            Assert.AreEqual("same message", c1.AESDecryption(s1, c1.IV));
+            Assert.AreEqual("same message", c2.AESDecryption(s2, c2.IV));
+        }
+
+        [TestMethod()]
+        public void AESDecryptionRejectsTamperedPayloadTest()
+        {
+            Crypto c = new Crypto(Encoding.UTF8);
+            string s = c.AESEncryption("safe message");
+            byte[] payload = Convert.FromBase64String(s);
+            payload[0] = (byte)(payload[0] ^ 1);
+            string tampered = Convert.ToBase64String(payload);
+
+            Assert.ThrowsException<CryptographicException>(() => c.AESDecryption(tampered, c.IV));
         }
 
         [TestMethod()]

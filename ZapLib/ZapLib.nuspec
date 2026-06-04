@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>ZapLib</id>
-    <version>2.5.0</version>
+    <version>2.6.0</version>
     <title>ZapLib</title>
     <authors>Zap Lin</authors>
     <owners>Zap Lin</owners>
@@ -14,18 +14,18 @@
       🔧 Source &amp; Issues: https://github.com/LinZap/ZapLib
     </description>
     <releaseNotes>
-      v2.5.0 — Stable release of the 2.5.x line. Includes:
-        * NEW OracleSQL class for Oracle database queries (managed driver, no Oracle Client needed)
-        * Security: patches CVEs in MailKit, MimeKit, Microsoft.Owin, Newtonsoft.Json
-        * Renamed misspelled public methods (Connet -> Connect, BuildconnString -> BuildConnectionString, SetRequestContnet -> SetRequestContent). Old names kept as [Obsolete] aliases for backward compatibility; they will be removed in v3.0.
-        * NEW documentation site: https://linzap.github.io/ZapLib/
-      v2.4.12 (previous stable) — SQL AlwaysOn read-only routing support
-      v1.22.0 (LTS for .NET 4.5)
+      v2.6.0 — Security and execution improvements. Includes:
+        * BREAKING: removed DES reversible encryption methods. Use Crypto.AESEncryption / Crypto.AESDecryption instead.
+        * Security: AES-CBC + HMAC-SHA256 reversible encryption, plus Fetch.ValidPlatform / [ValidPlatform] upgraded from DES to AES authorization.
+        * NEW SQL fire-and-forget execution: QuickExecuteNoWait and QuickExecNoWait run in background with independent SQL connections.
+        * MyLog ForceLog fallback now writes to one .force log file instead of recursive GUID-suffix files.
+      v2.5.0 (previous stable) — OracleSQL, dependency CVE fixes, public method spelling aliases, and DocFX documentation site.
+      v1.23.0 (legacy) — .NET Framework 4.7.2 legacy line.
 
       Full changelog: https://github.com/LinZap/ZapLib/blob/master/CHANGELOG.md
     </releaseNotes>
     <copyright>Copyright Zap Lin 2018-2026</copyright>
-    <tags>Zap Lib API HTTP Fetch SQL Oracle WebAPI SignalR SMTP Mailer Regex JSON Crypto</tags>
+    <tags>Zap Lib API HTTP Fetch SQL NoWait Oracle WebAPI SignalR SMTP Mailer Regex JSON Crypto AES</tags>
     <projectUrl>https://linzap.github.io/ZapLib/</projectUrl>
     <readme>docs\README.md</readme>
     <license type="expression">MIT</license>

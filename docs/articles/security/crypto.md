@@ -1,8 +1,8 @@
 # Security - Crypto
 
-`Crypto` 提供 MD5、DES 加解密、亂數字串等基本工具。底層採用 .NET 內建 `System.Security.Cryptography`，但 MD5 部分使用 ZapLib 自行實作的版本（`ZapLib.Utility.MD5`）。
+`Crypto` 提供 MD5、AES 可逆加解密、亂數字串等基本工具。底層採用 .NET 內建 `System.Security.Cryptography`，MD5 部分使用 ZapLib 自行實作的版本（`ZapLib.Utility.MD5`）。
 
-> ⚠️ DES 已被 NIST 標記為**不安全**（2005 起）。新專案應改用 AES。`Crypto.DES` 系列保留主要是為了相容 [`[ValidPlatform]`](../webapi/valid-platform.md) 機制。
+> ⚠️ 可逆加密適合保護短文字或內部驗證資料，不適合儲存密碼。密碼請使用 BCrypt / PBKDF2 / Argon2 這類 password hashing。
 
 ## Namespace
 
@@ -35,14 +35,16 @@ Crypto crypto = new Crypto(Encoding.UTF8);
 string hash = crypto.Md5("你好，ZapLib");
 ```
 
-## DES Encryption / Decryption
+## AES Encryption / Decryption
+
+`AESEncryption` / `AESDecryption` 使用 AES-CBC 加密，並以 HMAC-SHA256 驗證密文完整性。回傳的密文是 Base64 字串，內含 HMAC 驗證碼；IV 會另外存放在 `crypto.IV`。
 
 ### Encrypt
 
 ```csharp
-Crypto crypto = new Crypto();
-string encrypted = crypto.DESEncryption("secret message");
-string iv = crypto.IV;   // 自動產生的 IV，解密時需要
+Crypto crypto = new Crypto(Encoding.UTF8);
+string encrypted = crypto.AESEncryption("secret message");
+string iv = crypto.IV;   // 自動產生的 Base64 16-byte IV，解密時需要
 
 Console.WriteLine($"Encrypted: {encrypted}");
 Console.WriteLine($"IV: {iv}");
@@ -51,26 +53,26 @@ Console.WriteLine($"IV: {iv}");
 ### Decrypt
 
 ```csharp
-Crypto crypto = new Crypto();
-string original = crypto.DESDecryption(encrypted, iv);
+Crypto crypto = new Crypto(Encoding.UTF8);
+string original = crypto.AESDecryption(encrypted, iv);
 Console.WriteLine(original);   // "secret message"
 ```
 
-### 重用同一個 IV
+### 指定 IV
 
 ```csharp
-Crypto crypto = new Crypto();
-crypto.IV = "fixedIV8";   // 固定 8 字元
+Crypto crypto = new Crypto(Encoding.UTF8);
+string iv = Convert.ToBase64String(Guid.NewGuid().ToByteArray()); // 16 bytes
 
-string a = crypto.DESEncryption("text 1");
-string b = crypto.DESEncryption("text 2");
-
-// 解密時用同一個 IV
-string da = crypto.DESDecryption(a, "fixedIV8");
-string db = crypto.DESDecryption(b, "fixedIV8");
+string encrypted = crypto.AESEncryption("text", iv);
+string original = crypto.AESDecryption(encrypted, iv);
 ```
 
-> ⚠️ **重用 IV 會降低加密強度**。生產環境每次加密都應該用新 IV，並把 IV 附在密文一起傳輸。
+> 每次加密都應使用新的 IV。重用 IV 會降低加密強度。
+
+### 完整性驗證
+
+`AESDecryption` 會先驗證 HMAC。密文遭竄改、IV 錯誤或 `Const.Key` 不一致時，會丟出 `CryptographicException`，而不是回傳被破壞的明文。
 
 ## Random String
 
@@ -92,7 +94,10 @@ string token = crypto.RandomString(32);
 > ```csharp
 > using System.Security.Cryptography;
 > byte[] bytes = new byte[32];
-> RandomNumberGenerator.Fill(bytes);
+> using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
+> {
+>     rng.GetBytes(bytes);
+> }
 > string secureToken = Convert.ToBase64String(bytes);
 > ```
 
@@ -100,39 +105,34 @@ string token = crypto.RandomString(32);
 
 ### Const.Key — 內建金鑰
 
-`Crypto.DESEncryption` 使用的金鑰是寫死在 `ZapLib.Security.Const.Key` 的字串：
+`AESEncryption` 使用 `ZapLib.Security.Const.Key` 作為對稱金鑰來源，並派生出 AES 與 HMAC 各自的 key：
 
 ```csharp
 namespace ZapLib.Security
 {
-    public static class Const
+    public class Const
     {
-        public static readonly string Key = "...";       // DES 金鑰
-        public static readonly string GodKey = "...";    // ValidPlatform bypass key
+        public static string Key = "...";       // 對稱金鑰來源
+        public static string GodKey = "...";    // ValidPlatform bypass key
     }
 }
 ```
 
-⚠️ **這是這個機制的根本弱點**：
+⚠️ **這仍然是需要管理的金鑰**：
 
-* 反編譯 ZapLib.dll 就能拿到金鑰
-* 所有用 ZapLib 的專案共用同一支金鑰
-* 沒有金鑰輪替機制
-
-**生產環境建議**：
-
-1. Fork ZapLib 並改 `Const.Key`，編成自家私有 NuGet
-2. 或改造 `Crypto` 從 `Config` 讀取金鑰，搭配 KMS
-3. 或完全捨棄 `Crypto`，改用 AES + HMAC
+* 反編譯 ZapLib.dll 可能取得預設金鑰
+* 所有沿用預設值的專案會共用同一支金鑰
+* 生產環境應覆寫 `Const.Key`，或改造成從 `Config` / KMS 讀取
 
 ## When to Use What
 
 | 需求 | ZapLib | 替代方案 |
 |---|---|---|
-| 簡單訊息簽章（內部信任） | `Crypto.Md5` | 同上 |
-| 內部 S2S API 驗證 | `Crypto.DESEncryption` + `[ValidPlatform]` | JWT / OAuth |
-| 密碼儲存 | ❌ 不要用 MD5 / DES | `BCrypt.Net-Next` / `Microsoft.AspNetCore.Identity` |
-| 對外 API 加密通訊 | ❌ 不要用 | HTTPS + AES-GCM |
+| 短文字可逆加密 | `Crypto.AESEncryption` / `AESDecryption` | 平台 KMS / DPAPI |
+| 簡單訊息簽章（內部信任） | `Crypto.Md5` | HMAC-SHA256 |
+| 內部 S2S API 驗證 | `Crypto.AESEncryption` + `[ValidPlatform]` | JWT / OAuth |
+| 密碼儲存 | ❌ 不要用 MD5 / AES | `BCrypt.Net-Next` / `Microsoft.AspNetCore.Identity` |
+| 對外 API 加密通訊 | ❌ 不要用 | HTTPS + 應用層標準協定 |
 | 密碼學等級亂數 | ❌ 不要用 `RandomString` | `RandomNumberGenerator` |
 
 ## See Also

@@ -336,6 +336,34 @@ namespace ZapLib.Tests
 
         }
 
+        [TestMethod()]
+        public void QuickExecuteNoWaitDoesNotOpenCurrentInstanceConnection()
+        {
+            SQL db = new SQL("Data Source=invalid-server;Initial Catalog=invalid-db;Integrated Security=True;Connect Timeout=1");
+            db.Timeout = 1;
+
+            Stopwatch sw = Stopwatch.StartNew();
+            db.QuickExecuteNoWait("SELECT @Value", new { Value = 1 });
+            sw.Stop();
+
+            Assert.IsNull(db.GetConnection());
+            Assert.IsTrue(sw.ElapsedMilliseconds < 500, "QuickExecuteNoWait should return immediately.");
+        }
+
+        [TestMethod()]
+        public void QuickExecNoWaitDoesNotOpenCurrentInstanceConnection()
+        {
+            SQL db = new SQL("Data Source=invalid-server;Initial Catalog=invalid-db;Integrated Security=True;Connect Timeout=1");
+            db.Timeout = 1;
+
+            Stopwatch sw = Stopwatch.StartNew();
+            db.QuickExecNoWait("sp_LongRunningJob", new { JobId = 123 });
+            sw.Stop();
+
+            Assert.IsNull(db.GetConnection());
+            Assert.IsTrue(sw.ElapsedMilliseconds < 500, "QuickExecNoWait should return immediately.");
+        }
+
 
         [TestMethod()]
         public void SQLDBReplaceTest()

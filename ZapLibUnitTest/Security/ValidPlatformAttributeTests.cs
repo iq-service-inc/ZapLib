@@ -18,7 +18,7 @@ namespace ZapLib.Security.Tests
             string content = JsonConvert.SerializeObject(new { name="Zap"});
             Crypto crypto = new Crypto();
             string OuterSignature = crypto.Md5(content);
-            string Authorization = crypto.DESEncryption(OuterSignature, "6");
+            string Authorization = crypto.AESEncryption(OuterSignature);
             string IV = crypto.IV;
 
 
@@ -32,9 +32,11 @@ namespace ZapLib.Security.Tests
             Assert.IsFalse(attr.IsVaild(fake_content, IV, Authorization, OuterSignature));
 
             // 請求內容遭到竄改但是使用上帝金鑰
+            string original_god_key = Const.GodKey;
             string god_key = "GoD!";
             Const.GodKey = god_key;
             Assert.IsTrue(attr.IsVaild(fake_content, IV, god_key, OuterSignature));
+            Const.GodKey = original_god_key;
         }
     }
 }

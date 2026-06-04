@@ -9,7 +9,7 @@ ZapLib 各模組會自動讀取 `App.config` / `Web.config` 中的 `appSettings`
 | Key | 使用者 | 預設值 | 說明 |
 |---|---|---|---|
 | [`SilentMode`](#silentmode) | `MyLog` | `false` | 全域關閉 ZapLib 內建 log |
-| [`ForceLog`](#forcelog) | `MyLog` | `false` | 強制寫 log（即使檔案被鎖也另存新檔） |
+| [`ForceLog`](#forcelog) | `MyLog` | `false` | 原始 log 寫入失敗時，集中寫入 `.force` fallback 檔 |
 | [`MyLog`](#mylog) | `MyLog` | — | Log 儲存路徑（覆蓋 `Storage`） |
 | [`Storage`](#storage) | `MyLog`, `ExtApiHelper.UploadFile` | — | 通用儲存路徑（Log、上傳檔案） |
 | [`LogExecTime`](#logexectime) | `LogExecTime` | `false` | 紀錄 SQL 執行時間到 log |
@@ -39,13 +39,15 @@ ZapLib 各模組會自動讀取 `App.config` / `Web.config` 中的 `appSettings`
 
 ### ForceLog
 
-當 log 檔案無法寫入時（例如多執行緒同時鎖檔），強制以**另一個檔名**（附加 GUID）寫入：
+當 log 檔案無法寫入時（例如多執行緒同時鎖檔），強制以同目錄的**單一 `.force` fallback 檔**寫入：
 
 ```xml
 <add key="ForceLog" value="true" />
 ```
 
-> 檔名範例：`20260520-0f8fad5b-d9cb-469f-a165-70867728950e.txt`
+> 檔名範例：原始路徑 `D:\logs\20260520.txt` 失敗時，fallback 會寫入 `D:\logs\20260520.force.txt`。
+>
+> ForceLog 只在正常寫入失敗後啟用，fallback 寫入本身會加 lock；若 fallback 仍失敗，ZapLib 會靜默結束，不再遞迴重試或產生其他檔案。
 
 ### MyLog
 

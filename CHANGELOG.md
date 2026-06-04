@@ -2,6 +2,14 @@
 
 改版紀錄
 
+## `2.6.0`
+
+1. **移除 DES 可逆加解密 API**：`Crypto.DESEncryption()` / `Crypto.DESDecryption()` 已移除，改由 `Crypto.AESEncryption()` / `Crypto.AESDecryption()` 取代。
+2. **新增 AES-CBC + HMAC-SHA256 可逆加解密**：`AESEncryption()` 會自動產生 Base64 16-byte IV 並寫入 `Crypto.IV`，回傳的密文為 Base64，且內含 HMAC 驗證碼；`AESDecryption()` 會先驗證密文完整性，驗證失敗會丟出 `CryptographicException`。
+3. **更新 `[ValidPlatform]` 與 `Fetch.ValidPlatform`**：平台驗證的 `Channel-Authorization` 由 DES 改為 AES-CBC + HMAC-SHA256 產生。
+4. **新增 `SQL` NoWait 執行方法**：新增 `QuickExecuteNoWait()` 與 `QuickExecNoWait()`，可在背景以獨立連線執行 SQL Text / Stored Procedure，呼叫端立即返回且不等待結果。
+5. **調整 `MyLog.ForceLog` fallback 策略**：原始 log 寫入失敗時，改為集中 append 到 `{fileName}.force{ext}`，不再遞迴產生 GUID suffix 檔案；fallback 寫入加上 lock 保護。
+
 ## `2.5.0`
 
 🎉 **v2.5.x 系列正式版**。彙整 `2.5.0-beta1` 與 `2.5.0-beta2` 全部內容，並新增以下：

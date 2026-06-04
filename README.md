@@ -22,8 +22,8 @@ PM> Install-Package ZapLib
 **Specific Version**
 
 ```
-PM> Install-Package ZapLib -Version 2.5.0       # v2 stable (latest)
-PM> Install-Package ZapLib -Version 2.4.12      # previous v2 stable
+PM> Install-Package ZapLib -Version 2.6.0       # v2 stable (latest)
+PM> Install-Package ZapLib -Version 2.5.0       # previous v2 stable
 PM> Install-Package ZapLib -Version 1.23.0      # v1 legacy
 ```
 
@@ -93,7 +93,7 @@ HR_Row[] users = db.QuickQuery<HR_Row>(
 | Module | Purpose | Docs |
 | --- | --- | --- |
 | `Fetch` | HTTP request 封裝（GET/POST/PUT/DELETE/PATCH、JSON、檔案上傳） | [📖](https://linzap.github.io/ZapLib/articles/fetch/basic-usage.html) |
-| `SQL` | SQL Server 連線與查詢、Bulk Copy、Transaction、Stored Procedure | [📖](https://linzap.github.io/ZapLib/articles/sql/basic-usage.html) |
+| `SQL` | SQL Server 連線與查詢、Bulk Copy、Transaction、Stored Procedure、NoWait | [📖](https://linzap.github.io/ZapLib/articles/sql/basic-usage.html) |
 | `OracleSQL` | Oracle 資料庫連線（純託管，免安裝 Oracle Client） | [📖](https://linzap.github.io/ZapLib/articles/sql/oracle.html) |
 | `ExtApiHelper` | ASP.NET Web API 2 擴充輔助 | [📖](https://linzap.github.io/ZapLib/articles/webapi/extapihelper.html) |
 | `ApiControllerSignalR<T>` | Web API + SignalR | [📖](https://linzap.github.io/ZapLib/articles/webapi/signalr.html) |
@@ -101,7 +101,7 @@ HR_Row[] users = db.QuickQuery<HR_Row>(
 | `Mailer` / `ImplicitMailer` | SMTP 寄信（MailKit / 隱式 SSL） | [📖](https://linzap.github.io/ZapLib/articles/mailer.html) |
 | `RegExp` | jQuery 風格的正規表達式 | [📖](https://linzap.github.io/ZapLib/articles/regexp.html) |
 | `JsonReader` / `JXPath` | 安全的深層 JSON 存取 | [📖](https://linzap.github.io/ZapLib/articles/json-reader.html) |
-| `Crypto` / `MD5` | MD5 / DES 加解密、簽章 | [📖](https://linzap.github.io/ZapLib/articles/security/crypto.html) |
+| `Crypto` / `MD5` | MD5 / AES 加解密、簽章 | [📖](https://linzap.github.io/ZapLib/articles/security/crypto.html) |
 | `Config` | App.config / Web.config 讀寫 | [📖](https://linzap.github.io/ZapLib/articles/utility/config.html) |
 | `MyLog` / `LogExecTime` | 檔案日誌、執行時間追蹤 | [📖](https://linzap.github.io/ZapLib/articles/logging/mylog.html) |
 | `ZipHelper` | Zip 壓縮 | [📖](https://linzap.github.io/ZapLib/articles/utility/zip-helper.html) |

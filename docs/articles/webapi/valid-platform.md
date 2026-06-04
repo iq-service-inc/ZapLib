@@ -17,14 +17,14 @@ using ZapLib.Security;
 | Header | 內容 |
 |---|---|
 | `Channel-Signature` | `MD5(request.Body)` |
-| `Channel-Iv` | DES 加密的初始化向量（隨機 8 字元） |
-| `Channel-Authorization` | `DES(Signature, IV, Const.Key)` |
+| `Channel-Iv` | AES 加密的初始化向量（Base64 16-byte IV） |
+| `Channel-Authorization` | `AES-CBC + HMAC-SHA256(Signature, IV, Const.Key)` |
 
 伺服器收到請求時：
 
 1. 重新計算 `MD5(request.Body)` → 得到 `InnerSignature`
 2. 比對 `InnerSignature == Channel-Signature`（防止 body 被竄改）
-3. 用 `Channel-Iv` + `Const.Key` 對 `Channel-Signature` 做 DES 加密
+3. 用 `Channel-Iv` + `Const.Key` 對 `Channel-Signature` 做 AES 加密並產生 HMAC
 4. 比對加密結果是否等於 `Channel-Authorization`
 5. 全部通過 → 放行；任一不通過 → 回 `401 Unauthorized`
 
@@ -84,7 +84,7 @@ dynamic result = f.Post<dynamic>(new { reason = "scheduled maintenance" });
 
 1. 計算 body 的 MD5
 2. 隨機產生 IV
-3. 用 `Const.Key` 做 DES 加密
+3. 用 `Const.Key` 做 AES 加密並產生 HMAC
 4. 把三個 header 塞進請求
 
 ## God Key Bypass
@@ -112,8 +112,8 @@ string body = JsonConvert.SerializeObject(new { reason = "test" });
 
 Crypto crypto = new Crypto();
 string signature = crypto.Md5(body);
-string authorization = crypto.DESEncryption(signature);
-string iv = crypto.IV;   // DESEncryption 內部產生並寫入 IV
+string authorization = crypto.AESEncryption(signature);
+string iv = crypto.IV;   // AESEncryption 內部產生並寫入 IV
 
 // 用任意 HTTP client 送請求，帶上這三個 header
 client.DefaultRequestHeaders.Add("Channel-Signature", signature);
@@ -125,7 +125,7 @@ client.DefaultRequestHeaders.Add("Channel-Authorization", authorization);
 
 * **金鑰管理**：`Const.Key` 是寫死在 source code 的對稱金鑰。**這是這個機制的根本弱點**。建議改造為從 `Config` 或 KMS 讀取
 * **重放攻擊**：本機制**沒有防重放**（沒有時間戳記、沒有 nonce）。攔截到請求的人可以無限次重放
-* **演算法**：DES 是 1970 年代的演算法，按今天標準**不安全**。新專案請考慮 AES + HMAC 取代
+* **演算法**：目前使用 AES-CBC + HMAC-SHA256 取代舊版 DES；若未來升級到支援 AEAD 的 target，可再評估 AES-GCM
 * **用途定位**：適合「同內網互信、防誤觸」，不適合「對外開放、防駭客」
 
 ## See Also

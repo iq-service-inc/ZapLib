@@ -133,5 +133,85 @@ namespace ZapLib.Tests
             Assert.IsTrue(File.Exists(log.LastWritePath));
 
         }
+
+        [TestMethod()]
+        public void ForceLogWritesSingleFallbackFileWhenOriginalFileLocked()
+        {
+            string originalForceLog = Config.Get("ForceLog");
+            string dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ZapLibForceLog_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+
+            try
+            {
+                Config.SetOrAdd("ForceLog", "true");
+                string name = "system-error.log";
+                string originalPath = System.IO.Path.Combine(dir, name);
+                string forcePath = System.IO.Path.Combine(dir, "system-error.force.log");
+                File.WriteAllText(originalPath, "locked");
+
+                using (FileStream stream = new FileStream(originalPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    MyLog log = new MyLog(name);
+                    log.Path = dir;
+                    log.Write("first force message");
+                    log.Write("second force message");
+
+                    Assert.AreEqual(forcePath, log.LastWritePath);
+                    Assert.IsTrue(File.Exists(forcePath));
+
+                    string forceContent = File.ReadAllText(forcePath);
+                    StringAssert.Contains(forceContent, "[ForceLog]");
+                    StringAssert.Contains(forceContent, "OriginalPath: " + originalPath);
+                    StringAssert.Contains(forceContent, "Exception:");
+                    StringAssert.Contains(forceContent, "first force message");
+                    StringAssert.Contains(forceContent, "second force message");
+                    Assert.AreEqual(0, Directory.GetFiles(dir, "system-error.log-*").Length);
+                }
+            }
+            finally
+            {
+                RestoreForceLogConfig(originalForceLog);
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [TestMethod()]
+        public void ForceLogDisabledDoesNotCreateFallbackFile()
+        {
+            string originalForceLog = Config.Get("ForceLog");
+            string dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ZapLibForceLog_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+
+            try
+            {
+                Config.Delete("ForceLog");
+                string name = "system-error.log";
+                string originalPath = System.IO.Path.Combine(dir, name);
+                string forcePath = System.IO.Path.Combine(dir, "system-error.force.log");
+                File.WriteAllText(originalPath, "locked");
+
+                using (FileStream stream = new FileStream(originalPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    MyLog log = new MyLog(name);
+                    log.Path = dir;
+                    log.Write("no force message");
+
+                    Assert.IsNull(log.LastWritePath);
+                    Assert.IsFalse(File.Exists(forcePath));
+                    Assert.AreEqual(0, Directory.GetFiles(dir, "system-error.log-*").Length);
+                }
+            }
+            finally
+            {
+                RestoreForceLogConfig(originalForceLog);
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        private void RestoreForceLogConfig(string originalForceLog)
+        {
+            if (originalForceLog == null) Config.Delete("ForceLog");
+            else Config.SetOrAdd("ForceLog", originalForceLog);
+        }
     }
 }

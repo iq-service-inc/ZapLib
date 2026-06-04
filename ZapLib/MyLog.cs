@@ -13,6 +13,8 @@ namespace ZapLib
     /// </summary>
     public class MyLog
     {
+        private static readonly object ForceLogLock = new object();
+
         /// <summary>
         /// 日誌存放路徑
         /// </summary>
@@ -97,11 +99,47 @@ namespace ZapLib
             {
                 if (Config.Get("ForceLog") != null)
                 {
-                    path += "-" + Guid.NewGuid().ToString();
-                    content = e.ToString() + "\n" + content;
-                    _write(path, content);
+                    _forceWrite(path, content, e);
                 }
             }
+        }
+
+        private void _forceWrite(string originalPath, string content, Exception ex)
+        {
+            try
+            {
+                string forcePath = GetForcePath(originalPath);
+                string forceContent =
+                    "[ForceLog]" + Environment.NewLine +
+                    "Time: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + Environment.NewLine +
+                    "OriginalPath: " + originalPath + Environment.NewLine +
+                    "Exception:" + Environment.NewLine +
+                    ex.ToString() + Environment.NewLine +
+                    Environment.NewLine +
+                    "Content:" + Environment.NewLine +
+                    content + Environment.NewLine +
+                    "------------------------------------------------------------" + Environment.NewLine;
+
+                lock (ForceLogLock)
+                {
+                    File.AppendAllText(forcePath, forceContent);
+                    LastWritePath = forcePath;
+                }
+            }
+            catch
+            {
+                // ForceLog 是最後防線；失敗後不遞迴、不再產生其他 fallback 檔案。
+            }
+        }
+
+        private string GetForcePath(string originalPath)
+        {
+            string dir = System.IO.Path.GetDirectoryName(originalPath);
+            string fileName = System.IO.Path.GetFileNameWithoutExtension(originalPath);
+            string ext = System.IO.Path.GetExtension(originalPath);
+            string forceName = string.Format("{0}.force{1}", fileName, ext);
+
+            return string.IsNullOrEmpty(dir) ? forceName : System.IO.Path.Combine(dir, forceName);
         }
 
         /// <summary>

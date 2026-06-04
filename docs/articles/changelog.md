@@ -4,6 +4,28 @@
 
 本頁列出近期版本的重點：
 
+## `2.6.0`
+
+### 🔒 Crypto 演算法更新
+
+* 移除 `Crypto.DESEncryption()` / `Crypto.DESDecryption()`，改用 `Crypto.AESEncryption()` / `Crypto.AESDecryption()`
+* 新增 AES-CBC + HMAC-SHA256 可逆加解密；密文內含 HMAC 驗證碼，解密前會先驗證完整性
+* `[ValidPlatform]` 與 `Fetch.ValidPlatform` 的 `Channel-Authorization` 已同步改用 AES-CBC + HMAC-SHA256
+
+### ✨ SQL NoWait
+
+* 新增 `SQL.QuickExecuteNoWait()`：背景執行一般 SQL Text，呼叫端立即返回
+* 新增 `SQL.QuickExecNoWait()`：背景執行 Stored Procedure，呼叫端立即返回
+* NoWait 背景任務會使用獨立 `SqlConnection` / `SqlCommand` / `SqlTransaction`，不共用目前 instance 的 `Conn` / `Cmd` / `Tran`
+
+### 🪵 MyLog ForceLog
+
+* ForceLog fallback 改為集中寫入 `{fileName}.force{ext}`
+* 不再遞迴呼叫 `_write()`，也不再產生 GUID suffix 檔案
+* ForceLog fallback 寫入加上 lock 保護，並記錄原始 path、exception 與原本內容
+
+---
+
 ## `2.5.0` 🎉
 
 **v2.5.x 系列正式版**。同時也是新文件站 [linzap.github.io/ZapLib](https://linzap.github.io/ZapLib/) 的首個正式版。

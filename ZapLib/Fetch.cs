@@ -522,7 +522,7 @@ namespace ZapLib
             string content = Request.Content == null ? "" : Request.Content.ReadAsStringAsync().Result;
             Crypto crypto = new Crypto();
             string Signature = crypto.Md5(content);
-            string Authorization = crypto.DESEncryption(Signature);
+            string Authorization = crypto.AESEncryption(Signature);
             string IV = crypto.IV;
             Header = new Dictionary<string, string>()
             {

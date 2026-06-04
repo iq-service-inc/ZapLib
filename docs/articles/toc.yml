@@ -24,6 +24,8 @@
       href: sql/bulk-copy.md
     - name: Stored Procedure
       href: sql/stored-procedure.md
+    - name: NoWait Execution
+      href: sql/no-wait.md
     - name: ExpParam (IN Clause)
       href: sql/exp-param.md
     - name: Oracle

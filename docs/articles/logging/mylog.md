@@ -76,13 +76,15 @@ log.Write("這行不會被寫入");
 
 ## Force Log
 
-當寫入失敗（多執行緒搶檔、檔案被鎖），預設**靜默忽略**。啟用 `ForceLog` 讓 ZapLib 改寫**另一個檔名**（附加 GUID）：
+當寫入失敗（多執行緒搶檔、檔案被鎖），預設**靜默忽略**。啟用 `ForceLog` 後，ZapLib 會把 fallback 內容集中寫到同目錄的 `.force` 檔案：
 
 ```xml
 <add key="ForceLog" value="true" />
 ```
 
-失敗時實際寫入：`D:\logs\20260520.txt-0f8fad5b-d9cb-469f-a165-70867728950e`
+失敗時實際寫入：`D:\logs\20260520.force.txt`
+
+ForceLog 內容會包含原始 log path、寫入失敗的 exception detail，以及原本要寫入的內容。多次 fallback 會 append 到同一個 `.force` 檔案，不再產生 GUID suffix 檔案。
 
 詳見 [Global Config — ForceLog](../global-config.md#forcelog)。
 
